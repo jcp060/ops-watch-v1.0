@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ops-bg: #070b12;
+  --ops-surface: #0f1623;
+  --ops-surface-raised: #151d2e;
+  --ops-border: rgba(148, 163, 184, 0.12);
+  --ops-accent: #22d3ee;
+  --ops-text: #e2e8f0;
+  --ops-text-muted: #94a3b8;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--ops-bg);
+  color: var(--ops-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: #fff;
+}
+
+/* Subtle mission-control grid texture on scroll areas */
+.ops-grid-bg {
+  background-color: var(--ops-bg);
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
