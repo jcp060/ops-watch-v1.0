@@ -5,6 +5,9 @@ import { useEffect, type ReactNode } from "react";
 import { OpsAppLayout } from "@/components/layout/OpsAppLayout";
 import { useAuth } from "./AuthProvider";
 
+const LOGIN_PATH = "/";
+const APP_HOME_PATH = "/active-flights";
+
 function AuthLoadingScreen() {
   return (
     <div className="ops-grid-bg flex min-h-screen items-center justify-center px-4">
@@ -23,24 +26,34 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated, isReady } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const isHome = pathname === "/";
+  const isLoginRoute = pathname === LOGIN_PATH;
 
   useEffect(() => {
-    if (!isReady || isAuthenticated) return;
-    if (!isHome) {
-      router.replace("/");
+    if (!isReady) return;
+
+    if (!isAuthenticated && !isLoginRoute) {
+      router.replace(LOGIN_PATH);
+      return;
     }
-  }, [isReady, isAuthenticated, isHome, router]);
+
+    if (isAuthenticated && isLoginRoute) {
+      router.replace(APP_HOME_PATH);
+    }
+  }, [isReady, isAuthenticated, isLoginRoute, router]);
 
   if (!isReady) {
     return <AuthLoadingScreen />;
   }
 
   if (!isAuthenticated) {
-    if (!isHome) {
+    if (!isLoginRoute) {
       return <AuthLoadingScreen />;
     }
     return children;
+  }
+
+  if (isLoginRoute) {
+    return <AuthLoadingScreen />;
   }
 
   return <OpsAppLayout>{children}</OpsAppLayout>;

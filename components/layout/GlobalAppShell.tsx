@@ -7,7 +7,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export const PRIMARY_NAV_ITEMS = [
-  { href: "/", label: "Active Flights" },
+  { href: "/active-flights", label: "Active Flights" },
   { href: "/reports", label: "Reports" },
 ] as const;
 
@@ -162,7 +162,7 @@ export function GlobalAppShell({ children }: { children: ReactNode }) {
       >
         <div className="shrink-0 border-b border-slate-800/60 px-4 py-5">
           <Link
-            href="/"
+            href="/active-flights"
             className="bg-gradient-to-b from-white to-slate-300 bg-clip-text font-mono text-base font-bold tracking-[0.14em] text-transparent"
           >
             OPS Watch
