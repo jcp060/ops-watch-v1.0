@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import type { Aircraft, Organization } from "@/lib/types";
-import { aircraftToRow, rowToAircraft } from "@/lib/supabase/aircraft-db";
-import { listSupabaseAircraft } from "@/lib/supabase/aircraft-db";
-import { resolveOrganizationUuidByLocalId } from "@/lib/supabase/organizations-db";
+import { aircraftToRow, listSupabaseAircraft, rowToAircraft } from "@/lib/supabase/aircraft-db";
+import {
+  listOrganizationsInSupabase,
+  resolveOrganizationUuidByLocalId,
+} from "@/lib/supabase/organizations-db";
 import { createSupabaseAdmin } from "@/lib/supabase/server";
 
 type CreateAircraftBody = Omit<Aircraft, "id"> & {
@@ -18,10 +20,20 @@ export async function GET() {
     );
   }
 
-  const { aircraft, error } = await listSupabaseAircraft(supabase);
+  const { organizations, error: orgError } =
+    await listOrganizationsInSupabase(supabase);
+  if (orgError) {
+    return NextResponse.json({ error: orgError }, { status: 500 });
+  }
+
+  const { aircraft, error } = await listSupabaseAircraft(supabase, organizations);
   if (error) {
     return NextResponse.json({ error }, { status: 500 });
   }
+
+  console.log("[OPS Watch][API] GET /api/aircraft", {
+    count: aircraft.length,
+  });
 
   return NextResponse.json({ aircraft });
 }

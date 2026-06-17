@@ -12,11 +12,15 @@ import {
 import {
   EMPTY_STATE,
   ensureDefaultAdmin,
+  loadPersistedLocalOnlyState,
   loadPersistedState,
   persistState,
+  persistStateWithSupabaseSource,
 } from "./storage";
 import { computeCheckInDeadline, getActiveMissionAircraftIds } from "./flights";
 import { resolveState } from "./us-states";
+import { isSupabaseConfigured } from "./organization-sync";
+import { hydrateOpsWatchFromSupabase } from "./supabase-hydration";
 import {
   canDisableUser as canDisableUserCheck,
   canRemoveUser as canRemoveUserCheck,
@@ -84,16 +88,77 @@ function extendCheckInDeadline(intervalMinutes: number): string {
 export function OpsWatchProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OpsWatchState>(EMPTY_STATE);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [supabaseSourceOfTruth, setSupabaseSourceOfTruth] = useState(false);
 
   useEffect(() => {
-    setState(ensureDefaultAdmin(loadPersistedState() ?? EMPTY_STATE));
-    setIsHydrated(true);
+    let cancelled = false;
+
+    async function hydrate() {
+      const configured = await isSupabaseConfigured();
+
+      if (!configured) {
+        if (cancelled) return;
+        const local = ensureDefaultAdmin(loadPersistedState() ?? EMPTY_STATE);
+        console.log("[OPS Watch][Hydration] using localStorage (Supabase not configured)", {
+          aircraft: local.aircraft.length,
+          organizations: local.organizations.length,
+        });
+        setSupabaseSourceOfTruth(false);
+        setState(local);
+        setIsHydrated(true);
+        return;
+      }
+
+      setSupabaseSourceOfTruth(true);
+      const localOnly = loadPersistedLocalOnlyState();
+      const base = ensureDefaultAdmin({
+        ...EMPTY_STATE,
+        users: localOnly.users,
+        flights: localOnly.flights,
+        events: localOnly.events,
+        aircraft: [],
+        organizations: [],
+      });
+
+      const result = await hydrateOpsWatchFromSupabase();
+      if (cancelled) return;
+
+      if (result.ok) {
+        setState({
+          ...base,
+          aircraft: result.aircraft,
+          organizations: result.organizations,
+        });
+      } else {
+        console.error("[OPS Watch][Hydration] startup failed — using partial data if available", {
+          error: result.error,
+          organizations: result.organizations.length,
+          aircraft: result.aircraft.length,
+        });
+        setState({
+          ...base,
+          aircraft: result.aircraft,
+          organizations: result.organizations,
+        });
+      }
+
+      setIsHydrated(true);
+    }
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!isHydrated) return;
+    if (supabaseSourceOfTruth) {
+      persistStateWithSupabaseSource(state);
+      return;
+    }
     persistState(state);
-  }, [state, isHydrated]);
+  }, [state, isHydrated, supabaseSourceOfTruth]);
 
   const addFlightEvent = useCallback(
     (flightId: string, type: FlightEventType, message: string) => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Organization } from "@/lib/types";
 import {
   insertOrganizationInSupabase,
+  listOrganizationsInSupabase,
   updateOrganizationInSupabase,
 } from "@/lib/supabase/organizations-db";
 import { isUuid } from "@/lib/supabase/uuid";
@@ -25,6 +26,27 @@ function logOrgCreateStep(
   } else {
     console.log("[OPS Watch][OrgCreate]", payload);
   }
+}
+
+export async function GET() {
+  const supabase = createSupabaseAdmin();
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Supabase is not configured." },
+      { status: 503 }
+    );
+  }
+
+  const { organizations, error } = await listOrganizationsInSupabase(supabase);
+  if (error) {
+    return NextResponse.json({ error }, { status: 500 });
+  }
+
+  console.log("[OPS Watch][API] GET /api/organizations", {
+    count: organizations.length,
+  });
+
+  return NextResponse.json({ organizations });
 }
 
 export async function POST(request: Request) {

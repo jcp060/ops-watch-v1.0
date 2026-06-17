@@ -95,3 +95,31 @@ export function persistState(state: OpsWatchState): void {
     console.error("Failed to persist OPS Watch state", error);
   }
 }
+
+/** Load flights, events, and users from localStorage (not aircraft/orgs). */
+export function loadPersistedLocalOnlyState(): Pick<
+  OpsWatchState,
+  "users" | "flights" | "events"
+> {
+  const persisted = loadPersistedState();
+  if (!persisted) {
+    return { users: [], flights: [], events: [] };
+  }
+  return {
+    users: persisted.users,
+    flights: persisted.flights,
+    events: persisted.events,
+  };
+}
+
+/**
+ * When Supabase owns aircraft/orgs, persist only local session data
+ * so browsers do not serve stale fleet records from localStorage.
+ */
+export function persistStateWithSupabaseSource(state: OpsWatchState): void {
+  persistState({
+    ...state,
+    aircraft: [],
+    organizations: [],
+  });
+}

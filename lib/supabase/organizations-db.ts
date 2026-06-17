@@ -12,6 +12,61 @@ export interface OrganizationInsertRow {
   local_id: string;
 }
 
+export interface OrganizationRow {
+  id: string;
+  name: string;
+  state_abbr: string;
+  state_name: string;
+  primary_emergency_contact_name: string;
+  primary_emergency_contact_phone: string;
+  local_id: string | null;
+  secondary_emergency_contact_name?: string | null;
+  secondary_emergency_contact_phone?: string | null;
+  notes?: string | null;
+}
+
+export function rowToOrganization(row: OrganizationRow): Organization {
+  const now = new Date(0).toISOString();
+  return {
+    id: row.id,
+    localId: row.local_id?.trim() || row.id,
+    name: row.name?.trim() ?? "",
+    stateAbbr: row.state_abbr?.trim().toUpperCase() ?? "",
+    stateName: row.state_name?.trim() ?? "",
+    primaryEmergencyContactName: row.primary_emergency_contact_name?.trim() ?? "",
+    primaryEmergencyContactPhone: row.primary_emergency_contact_phone?.trim() ?? "",
+    secondaryEmergencyContactName:
+      row.secondary_emergency_contact_name?.trim() || undefined,
+    secondaryEmergencyContactPhone:
+      row.secondary_emergency_contact_phone?.trim() || undefined,
+    notes: row.notes?.trim() || undefined,
+    dateCreated: now,
+    lastUpdated: now,
+  };
+}
+
+export async function listOrganizationsInSupabase(
+  supabase: SupabaseClient
+): Promise<{ organizations: Organization[]; error?: string }> {
+  const { data, error } = await supabase
+    .from("organizations")
+    .select(
+      "id, name, state_abbr, state_name, primary_emergency_contact_name, primary_emergency_contact_phone, local_id"
+    )
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Supabase organizations list failed", error);
+    return { organizations: [], error: error.message };
+  }
+
+  const organizations = (data ?? [])
+    .map((row) => rowToOrganization(row as OrganizationRow))
+    .filter((org) => org.id && org.name);
+
+  return { organizations };
+}
+
 function logOrganizationMapping(localId: string, uuid: string): void {
   console.log("[Supabase] organization local_id → uuid:", localId, "→", uuid);
 }

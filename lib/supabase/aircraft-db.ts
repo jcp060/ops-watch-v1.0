@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Aircraft } from "@/lib/types";
+import type { Aircraft, AircraftOperationalStatus, Organization } from "@/lib/types";
 
 export interface SupabaseAircraftListRecord {
   id: string;
@@ -45,12 +45,20 @@ export function aircraftToRow(
   };
 }
 
+function mapDbAircraftStatus(status: string | null): AircraftOperationalStatus {
+  if (status?.toUpperCase() === "MAINTENANCE") return "maintenance";
+  return "active";
+}
+
 export async function listSupabaseAircraft(
-  supabase: SupabaseClient
-): Promise<{ aircraft: SupabaseAircraftListRecord[]; error?: string }> {
+  supabase: SupabaseClient,
+  organizations: Organization[] = []
+): Promise<{ aircraft: Aircraft[]; error?: string }> {
   const { data, error } = await supabase
     .from("aircraft")
-    .select("id, tail_number, callsign, organization_id")
+    .select(
+      "id, tail_number, callsign, make, model, organization_id, image_url, status"
+    )
     .order("tail_number", { ascending: true });
 
   if (error) {
@@ -58,12 +66,29 @@ export async function listSupabaseAircraft(
     return { aircraft: [], error: error.message };
   }
 
-  const aircraft = (data ?? []).map((row) => ({
-    id: row.id as string,
-    tailNumber: (row.tail_number as string)?.trim() ?? "",
-    callsign: (row.callsign as string | null)?.trim() || undefined,
-    organizationId: row.organization_id as string,
-  }));
+  const orgById = new Map(
+    organizations.map((org) => [
+      org.id,
+      { stateAbbr: org.stateAbbr, stateName: org.stateName },
+    ])
+  );
+
+  const aircraft = (data ?? []).map((row) => {
+    const typedRow = row as AircraftRow & { status?: string | null };
+    const orgId = typedRow.organization_id;
+    const orgState = orgById.get(orgId);
+    const stateAbbr = orgState?.stateAbbr ?? "AZ";
+    const stateName = orgState?.stateName ?? "Arizona";
+
+    return {
+      ...rowToAircraft(typedRow, {
+        organizationId: orgId,
+        stateAbbr,
+        stateName,
+      }),
+      operationalStatus: mapDbAircraftStatus(typedRow.status ?? null),
+    };
+  });
 
   return { aircraft };
 }
