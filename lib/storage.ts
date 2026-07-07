@@ -96,30 +96,27 @@ export function persistState(state: OpsWatchState): void {
   }
 }
 
-/** Load flights, events, and users from localStorage (not aircraft/orgs). */
-export function loadPersistedLocalOnlyState(): Pick<
-  OpsWatchState,
-  "users" | "flights" | "events"
-> {
+/** Load dev-only users from localStorage (not aircraft, orgs, flights, or events). */
+export function loadPersistedLocalOnlyState(): Pick<OpsWatchState, "users"> {
   const persisted = loadPersistedState();
   if (!persisted) {
-    return { users: [], flights: [], events: [] };
+    return { users: [] };
   }
   return {
     users: persisted.users,
-    flights: persisted.flights,
-    events: persisted.events,
   };
 }
 
 /**
- * When Supabase owns aircraft/orgs, persist only local session data
- * so browsers do not serve stale fleet records from localStorage.
+ * When Supabase owns shared ops data, persist only local dev users
+ * so browsers do not serve stale fleet or mission records from localStorage.
  */
 export function persistStateWithSupabaseSource(state: OpsWatchState): void {
   persistState({
     ...state,
     aircraft: [],
     organizations: [],
+    flights: [],
+    events: [],
   });
 }

@@ -58,3 +58,6 @@ create index if not exists profiles_username_idx on public.profiles (username);
 -- See: supabase/add-emergency-workflow-executions-performed-by.sql
 -- Foreign keys for PostgREST embedded joins (run if relationships missing):
 -- See: supabase/add-emergency-workflow-foreign-keys.sql
+-- Flights and flight events (shared ops data):
+-- See: supabase/flights-schema.sql
+-- Realtime (existing deployments): supabase/add-flights-realtime.sql

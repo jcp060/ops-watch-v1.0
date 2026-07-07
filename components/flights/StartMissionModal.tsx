@@ -30,9 +30,9 @@ export function StartMissionModal({
   );
 
   const handleSelect = useCallback(
-    (aircraftId: string) => {
-      launchMissionFromAircraft(aircraftId);
-      onClose();
+    async (aircraftId: string) => {
+      const ok = await launchMissionFromAircraft(aircraftId);
+      if (ok) onClose();
     },
     [launchMissionFromAircraft, onClose]
   );
