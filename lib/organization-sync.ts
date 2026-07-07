@@ -1,9 +1,21 @@
+import { getSupabasePublicConfig } from "@/lib/supabase/env.public";
 import type { Organization } from "@/lib/types";
 
 let configuredCache: boolean | null = null;
 
+function logSupabaseConfiguredDebug(configured: boolean, extra?: Record<string, unknown>) {
+  const { url, anonKey } = getSupabasePublicConfig();
+  console.log("[OPS Watch][Supabase] isSupabaseConfigured debug", {
+    NEXT_PUBLIC_SUPABASE_URL_exists: Boolean(url),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY_exists: Boolean(anonKey),
+    isSupabaseConfigured: configured,
+    ...extra,
+  });
+}
+
 export async function isSupabaseConfigured(): Promise<boolean> {
   if (configuredCache !== null) {
+    logSupabaseConfiguredDebug(configuredCache, { source: "cache" });
     return configuredCache;
   }
 
@@ -13,17 +25,26 @@ export async function isSupabaseConfigured(): Promise<boolean> {
     const durationMs = performance.now() - startedAt;
     if (!res.ok) {
       configuredCache = false;
+      logSupabaseConfiguredDebug(false, {
+        source: "storage-status",
+        status: res.status,
+        durationMs: durationMs.toFixed(1),
+      });
       return false;
     }
     const data = (await res.json()) as { configured?: boolean };
     configuredCache = Boolean(data.configured);
-    console.log("[OPS Watch][OrgCreate] isSupabaseConfigured probe", {
-      configured: configuredCache,
+    logSupabaseConfiguredDebug(configuredCache, {
+      source: "storage-status",
       durationMs: durationMs.toFixed(1),
     });
     return configuredCache;
-  } catch {
+  } catch (error) {
     configuredCache = false;
+    logSupabaseConfiguredDebug(false, {
+      source: "storage-status",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return false;
   }
 }

@@ -144,6 +144,7 @@ export function OpsWatchProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function hydrate() {
+      console.log("[OPS Watch][Hydration] startup — probing Supabase configuration");
       const configured = await isSupabaseConfigured();
 
       if (!configured) {
