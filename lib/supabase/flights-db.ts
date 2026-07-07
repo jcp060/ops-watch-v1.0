@@ -33,6 +33,7 @@ import { isUuid } from "./uuid";
  *   id uuid primary key default gen_random_uuid(),
  *   flight_id uuid not null references public.flights (id) on delete cascade,
  *   type text not null check (type in ('created', 'check_in', 'enroute', 'landed', 'archived')),
+ *   event_type text not null,
  *   message text not null,
  *   timestamp timestamptz not null default now()
  * );
@@ -45,7 +46,8 @@ import { isUuid } from "./uuid";
 const FLIGHT_COLUMNS =
   "id, aircraft_id, organization_id, status, mission_name, pilot_name, pilot_id, started_at, check_in_interval_minutes, check_in_deadline, enroute_confirmed, landed_safely";
 
-const FLIGHT_EVENT_COLUMNS = "id, flight_id, type, message, timestamp";
+const FLIGHT_EVENT_COLUMNS =
+  "id, flight_id, type, event_type, message, timestamp";
 
 const VALID_EVENT_TYPES = new Set<FlightEventType>([
   "created",
@@ -54,6 +56,29 @@ const VALID_EVENT_TYPES = new Set<FlightEventType>([
   "landed",
   "archived",
 ]);
+
+/** Maps app event types to legacy flight_events.event_type values (NOT NULL in DB). */
+const FLIGHT_EVENT_TYPE_TO_DB: Record<FlightEventType, string> = {
+  created: "MISSION_STARTED",
+  check_in: "CHECK_IN",
+  enroute: "ENROUTE",
+  landed: "LANDED",
+  archived: "ARCHIVED",
+};
+
+const DB_EVENT_TYPE_TO_APP: Record<string, FlightEventType> = {
+  MISSION_STARTED: "created",
+  CHECK_IN: "check_in",
+  ENROUTE: "enroute",
+  LANDED: "landed",
+  ARCHIVED: "archived",
+  // Legacy rows may store the same strings as the app type column.
+  created: "created",
+  check_in: "check_in",
+  enroute: "enroute",
+  landed: "landed",
+  archived: "archived",
+};
 
 export interface FlightRow {
   id: string;
@@ -73,7 +98,8 @@ export interface FlightRow {
 export interface FlightEventRow {
   id: string;
   flight_id: string;
-  type: string;
+  type: string | null;
+  event_type: string | null;
   message: string;
   timestamp: string;
 }
@@ -92,6 +118,20 @@ function normalizeFlightStatus(status: string | null | undefined): FlightStatus 
 function normalizeEventType(type: string | null | undefined): FlightEventType | null {
   if (!type || !VALID_EVENT_TYPES.has(type as FlightEventType)) return null;
   return type as FlightEventType;
+}
+
+function resolveEventTypeFromRow(row: FlightEventRow): FlightEventType | null {
+  const fromType = normalizeEventType(row.type);
+  if (fromType) return fromType;
+
+  const fromEventType = row.event_type?.trim();
+  if (!fromEventType) return null;
+
+  return DB_EVENT_TYPE_TO_APP[fromEventType] ?? normalizeEventType(fromEventType);
+}
+
+function mapEventTypeToDb(type: FlightEventType): string {
+  return FLIGHT_EVENT_TYPE_TO_DB[type];
 }
 
 export function rowToFlight(row: FlightRow): Flight | null {
@@ -125,7 +165,7 @@ export function rowToFlight(row: FlightRow): Flight | null {
 }
 
 export function rowToFlightEvent(row: FlightEventRow): FlightEvent | null {
-  const type = normalizeEventType(row.type);
+  const type = resolveEventTypeFromRow(row);
   if (!row.id || !row.flight_id || !type) return null;
 
   return {
@@ -365,6 +405,7 @@ export async function addFlightEvent(
   const row = {
     flight_id: input.flightId,
     type: input.type,
+    event_type: mapEventTypeToDb(input.type),
     message,
     timestamp: input.timestamp ?? new Date().toISOString(),
   };
