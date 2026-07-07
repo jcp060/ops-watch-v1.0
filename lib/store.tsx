@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -131,11 +132,11 @@ export function OpsWatchProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   const supabaseSourceRef = useRef(supabaseSourceOfTruth);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     stateRef.current = state;
   }, [state]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     supabaseSourceRef.current = supabaseSourceOfTruth;
   }, [supabaseSourceOfTruth]);
 
@@ -466,14 +467,13 @@ export function OpsWatchProvider({ children }: { children: ReactNode }) {
       data.checkInIntervalMinutes > 0 ? data.checkInIntervalMinutes : 10;
     const startedAt = data.startedAt || new Date().toISOString();
 
-    const prev = stateRef.current;
-    const busy = getActiveMissionAircraftIds(prev.flights);
+    const busy = getActiveMissionAircraftIds(state.flights);
     if (busy.has(data.aircraftId)) return false;
 
-    const aircraft = prev.aircraft.find((a) => a.id === data.aircraftId);
+    const aircraft = state.aircraft.find((a) => a.id === data.aircraftId);
     if (!aircraft) return false;
 
-    if (supabaseSourceRef.current) {
+    if (supabaseSourceOfTruth) {
       const { flight, event, error } = await createFlightViaApi({
         ...data,
         missionName,
@@ -534,14 +534,13 @@ export function OpsWatchProvider({ children }: { children: ReactNode }) {
       };
     });
     return launched;
-  }, []);
+  }, [state, supabaseSourceOfTruth]);
 
   const launchMissionFromAircraft = useCallback(async (aircraftId: string) => {
-    const prev = stateRef.current;
-    const busy = getActiveMissionAircraftIds(prev.flights);
+    const busy = getActiveMissionAircraftIds(state.flights);
     if (busy.has(aircraftId)) return false;
 
-    const aircraft = prev.aircraft.find((a) => a.id === aircraftId);
+    const aircraft = state.aircraft.find((a) => a.id === aircraftId);
     if (!aircraft) return false;
 
     const startedAt = new Date().toISOString();
@@ -552,7 +551,7 @@ export function OpsWatchProvider({ children }: { children: ReactNode }) {
       aircraft.callsign ? ` (${aircraft.callsign})` : ""
     }`;
 
-    if (supabaseSourceRef.current) {
+    if (supabaseSourceOfTruth) {
       const { flight, event, error } = await createFlightViaApi({
         aircraftId: aircraft.id,
         organizationId: aircraft.organizationId,
@@ -617,7 +616,7 @@ export function OpsWatchProvider({ children }: { children: ReactNode }) {
       };
     });
     return launched;
-  }, []);
+  }, [state, supabaseSourceOfTruth]);
 
   const completeMission = useCallback((flightId: string) => {
     const now = new Date().toISOString();

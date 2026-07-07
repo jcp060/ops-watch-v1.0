@@ -17,9 +17,12 @@ export function StartMissionModal({
   open,
   onClose,
 }: StartMissionModalProps) {
-  const { getAvailableAircraft, launchMissionFromAircraft } = useOpsWatch();
+  const { getAvailableAircraft, launchMissionFromAircraft, isHydrated } =
+    useOpsWatch();
   const [query, setQuery] = useState("");
   const [highlightIndex, setHighlightIndex] = useState(0);
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [launching, setLaunching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const available = getAvailableAircraft();
@@ -31,16 +34,29 @@ export function StartMissionModal({
 
   const handleSelect = useCallback(
     async (aircraftId: string) => {
-      const ok = await launchMissionFromAircraft(aircraftId);
-      if (ok) onClose();
+      if (launching) return;
+      setLaunchError(null);
+      setLaunching(true);
+      try {
+        const ok = await launchMissionFromAircraft(aircraftId);
+        if (ok) {
+          onClose();
+          return;
+        }
+        setLaunchError("Could not start mission. Try again or check Settings.");
+      } finally {
+        setLaunching(false);
+      }
     },
-    [launchMissionFromAircraft, onClose]
+    [launchMissionFromAircraft, launching, onClose]
   );
 
   useEffect(() => {
     if (!open) return;
     setQuery("");
     setHighlightIndex(0);
+    setLaunchError(null);
+    setLaunching(false);
     const id = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(id);
   }, [open]);
@@ -129,8 +145,15 @@ export function StartMissionModal({
             className={opsInput}
             autoComplete="off"
             aria-controls="aircraft-select-list"
+            disabled={!isHydrated || launching}
           />
         </div>
+
+        {launchError && (
+          <p className="px-5 pt-3 text-sm text-rose-400" role="alert">
+            {launchError}
+          </p>
+        )}
 
         <ul
           id="aircraft-select-list"
@@ -140,8 +163,9 @@ export function StartMissionModal({
         >
           {available.length === 0 ? (
             <li className="px-5 py-10 text-center text-sm text-amber-400/90">
-              No aircraft available. Add aircraft in Settings or complete
-              active missions first.
+              {!isHydrated
+                ? "Loading aircraft…"
+                : "No aircraft available. Add aircraft in Settings or complete active missions first."}
             </li>
           ) : filtered.length === 0 ? (
             <li className="px-5 py-10 text-center text-sm text-slate-500">
@@ -157,8 +181,9 @@ export function StartMissionModal({
                     type="button"
                     role="option"
                     aria-selected={highlighted}
+                    disabled={launching}
                     onMouseEnter={() => setHighlightIndex(index)}
-                    onClick={() => handleSelect(ac.id)}
+                    onClick={() => void handleSelect(ac.id)}
                     className={`flex w-full items-center gap-3 border-b border-slate-800/40 px-5 py-3.5 text-left transition-colors last:border-0 ${
                       highlighted
                         ? "bg-cyan-950/50"

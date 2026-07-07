@@ -60,4 +60,5 @@ create index if not exists profiles_username_idx on public.profiles (username);
 -- See: supabase/add-emergency-workflow-foreign-keys.sql
 -- Flights and flight events (shared ops data):
 -- See: supabase/flights-schema.sql
+-- Existing deployments missing columns: supabase/add-flights-missing-columns.sql
 -- Realtime (existing deployments): supabase/add-flights-realtime.sql

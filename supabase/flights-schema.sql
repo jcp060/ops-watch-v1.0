@@ -1,5 +1,6 @@
 -- Flights and flight events (shared ops data)
--- Run in the Supabase SQL editor before using /api/flights
+-- Greenfield: run this file in the Supabase SQL editor before using /api/flights.
+-- Existing projects with an older flights table: run add-flights-missing-columns.sql instead.
 
 create table if not exists public.flights (
   id uuid primary key default gen_random_uuid(),
